@@ -7,38 +7,62 @@ namespace AccessControlAPI.Controllers;
 [Route("api/[controller]")]
 public class UsersController : ControllerBase
 {
+    private readonly AppDbContext _banco;
+
+    public UsersController(AppDbContext banco)
+    {
+        _banco = banco;
+    }
+
     [HttpGet]
     public IActionResult GetUsers()
     {
-        // Lista simulada provisória para testar a integração inicial
-        var mockUsers = new List<Usuario>
-        {
-            new Usuario { Id = 1, Name = "Diogo Nascimento", Uid = "A1 B2 C3 D4", Role = "Desenvolvedor", Active = true, Accesses = 42 },
-            new Usuario { Id = 2, Name = "Maira Lourenço", Uid = "C9 04 AA 5E", Role = "Documentação", Active = true, Accesses = 27 }
-        };
-
-        return Ok(mockUsers);
+        var usuarios = _banco.Usuarios.ToList();
+        return Ok(usuarios);
     }
 
-    [HttpPost] // O POST é o verbo HTTP usado para CRIAR coisas
+    [HttpPost]
     public IActionResult CreateUser([FromBody] Usuario novoUsuario)
     {
-        // 1. O React enviou os dados e o C# converteu automaticamente para a classe Usuario
-        
-        // 2. Validação simples: se não mandou nome ou UID, devolve erro
         if (string.IsNullOrEmpty(novoUsuario.Name) || string.IsNullOrEmpty(novoUsuario.Uid))
-        {
             return BadRequest(new { mensagem = "Nome e UID são obrigatórios." });
-        }
 
-        // 3. Aqui, futuramente, você vai salvar no Banco de Dados.
-        // Por enquanto, vamos fingir que salvou no banco e devolver um status de sucesso (201 Created)
-        
-        novoUsuario.Id = new Random().Next(3, 1000); // Gera um ID falso só pra testar
         novoUsuario.Active = true;
-        novoUsuario.Accesses = 0;
+        
+        _banco.Usuarios.Add(novoUsuario);
+        _banco.SaveChanges(); 
 
         return Created("", novoUsuario);
     }
 
+    // --- A ROTA QUE FAZ O EDITAR E O TOGGLE FUNCIONAREM (PUT) ---
+    [HttpPut("{id}")]
+    public IActionResult UpdateUser(int id, [FromBody] Usuario usuarioAtualizado)
+    {
+        var usuarioExistente = _banco.Usuarios.FirstOrDefault(u => u.Id == id);
+        if (usuarioExistente == null)
+            return NotFound(new { mensagem = "Usuário não encontrado." });
+
+        // Atualiza os dados no banco com o que veio do React
+        usuarioExistente.Name = usuarioAtualizado.Name;
+        usuarioExistente.Role = usuarioAtualizado.Role;
+        usuarioExistente.Uid = usuarioAtualizado.Uid;
+        usuarioExistente.Active = usuarioAtualizado.Active;
+
+        _banco.SaveChanges();
+        return Ok(usuarioExistente);
+    }
+
+    [HttpDelete("{id}")]
+    public IActionResult DeleteUser(int id)
+    {
+        var usuario = _banco.Usuarios.FirstOrDefault(u => u.Id == id);
+        if (usuario == null)
+            return NotFound();
+
+        _banco.Usuarios.Remove(usuario);
+        _banco.SaveChanges(); 
+
+        return NoContent();
+    }
 }

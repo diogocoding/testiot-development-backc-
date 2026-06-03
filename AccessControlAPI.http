@@ -4,3 +4,12 @@ GET {{}}/weatherforecast/
 Accept: application/json
 
 ###
+
+### Testando a validação da ESP32
+POST http://localhost:5000/api/access/validate
+Content-Type: application/json
+
+{
+  "rfidTag": "FF3A91C0",
+  "deviceToken": "ESP32-001"
+}
